@@ -102,6 +102,7 @@
 | **ENABLE_GAMES**          | True                 | Enable game playing                                          |
 | **DISABLED_GAMES_SESSIONS** | "session1,session2"   | Disable games in sessions (comma separated)                    |
 | **MAX_GAMES_PER_SESSION** | 0                    | Maximum games per session (0 = unlimited)                    |
+| **BLACKLISTED_SESSIONS** | ""                   | Sessions that will not be used (comma separated)             |
 | **DEBUG_LOGGING**         | False                | Enable debug logging                                         |
 | **DEVICE_PARAMS**         | False                | Enable custom device parameters                              |
 

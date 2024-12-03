@@ -124,6 +124,11 @@ async def get_tg_clients() -> list[UniversalTelegramClient]:
     tg_clients = []
     for session in session_paths:
         session_name = os.path.basename(session)
+        
+        if session_name in settings.blacklisted_sessions:
+            logger.warning(f"{session_name} | Session is blacklisted | Skipping")
+            continue
+            
         accounts_config = config_utils.read_config_file(CONFIG_PATH)
         session_config: dict = deepcopy(accounts_config.get(session_name, {}))
         if 'api' not in session_config:

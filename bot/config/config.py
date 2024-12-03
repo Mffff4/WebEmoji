@@ -31,12 +31,19 @@ class Settings(BaseSettings):
     DISABLED_GAMES_SESSIONS: str = ""
 
     DAILY_STATS_SESSIONS: str = ""
+    BLACKLISTED_SESSIONS: str = ""
 
     @property
     def disabled_sessions(self) -> List[str]:
         if not self.DISABLED_GAMES_SESSIONS:
             return []
         return [x.strip() for x in self.DISABLED_GAMES_SESSIONS.split(',')]
+
+    @property
+    def blacklisted_sessions(self) -> List[str]:
+        if not self.BLACKLISTED_SESSIONS:
+            return []
+        return [x.strip() for x in self.BLACKLISTED_SESSIONS.split(',')]
 
     @property
     def stats_sessions(self) -> List[str]:
