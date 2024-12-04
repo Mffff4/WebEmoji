@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y \
     qtbase5-dev \
     qt5-qmake \
     qtchooser \
-    bash
+    bash \
+    git
 
 WORKDIR /app/
 
