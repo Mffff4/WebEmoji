@@ -40,6 +40,20 @@ class UpdateManager:
         except subprocess.CalledProcessError:
             return ""
 
+    def _check_requirements_changed(self) -> bool:
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", "HEAD@{1}", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            changed_files = result.stdout.strip().split('\n')
+            return "requirements.txt" in changed_files
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error checking requirements changes: {e}")
+            return True
+
     async def _get_latest_commit(self) -> Optional[str]:
         try:
             async with aiohttp.ClientSession() as session:
@@ -70,6 +84,11 @@ class UpdateManager:
 
     def _install_requirements(self) -> bool:
         try:
+            if not self._check_requirements_changed():
+                logger.info("📦 No changes in requirements.txt, skipping dependency installation")
+                return True
+                
+            logger.info("📦 Changes detected in requirements.txt, updating dependencies...")
             subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], check=True)
             return True
         except subprocess.CalledProcessError as e:
