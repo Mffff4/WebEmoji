@@ -94,11 +94,13 @@
 | **API_HASH**              |                      | Telegram API application hash                                 |
 |   **GLOBAL_CONFIG_PATH**    |                      | Defines the global path for accounts_config, proxies, sessions. <br/>Specify the absolute path or use the environment variable (default - environment variable: **TG_FARM**)<br/> If the environment variable does not exist, it uses the script directory |
 |        **FIX_CERT**         | False                | Try to fix SSLCertVerificationError ( True / **False** ) |
+| **SESSION_START_DELAY**   | 360                  | Delay before session start (sec)                             |
+| **GAME_START_DELAY**      | (5, 8)                | Time to wait before starting the game (sec)
+| **SLEEP_AFTER_GAME**      | (0, 3600)             | Time to wait after the game (sec)
 | **REF_ID**                |             | Referral ID for new accounts                                 |
 | **USE_PROXY**             | False                 | Enable proxy usage                                           |
 | **SESSIONS_PER_PROXY**    | 1                    | Number of sessions per proxy                                 |
 | **DISABLE_PROXY_REPLACE** | False                | Disable proxy replacement on failure                         |
-| **SESSION_START_DELAY**   | 360                  | Delay before session start (sec)                             |
 | **ENABLE_GAMES**          | True                 | Enable game playing                                          |
 | **DISABLED_GAMES_SESSIONS** | "session1,session2"   | Disable games in sessions (comma separated)                    |
 | **MAX_GAMES_PER_SESSION** | 0                    | Maximum games per session (0 = unlimited)                    |

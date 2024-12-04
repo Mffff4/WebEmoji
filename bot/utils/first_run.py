@@ -3,7 +3,6 @@ import os
 from datetime import datetime, timezone
 
 async def check_is_first_run(session_name: str) -> bool:
-    """Проверяет, является ли это первым запуском для данной сессии"""
     try:
         if not os.path.exists('first_run.txt'):
             return True
@@ -16,13 +15,11 @@ async def check_is_first_run(session_name: str) -> bool:
         return True
 
 async def append_recurring_session(session_name: str):
-    """Записывает сессию в файл с временем первого запуска"""
     current_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     async with aiofiles.open('first_run.txt', mode='a+') as file:
         await file.write(f"{session_name.lower()},{current_time}\n")
 
 async def get_session_first_run_time(session_name: str) -> str:
-    """Получает время первого запуска сессии"""
     try:
         async with aiofiles.open('first_run.txt', mode='r') as file:
             content = await file.read()

@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     FIX_CERT: bool = False
 
     SESSION_START_DELAY: int = 360
-
+    GAME_START_DELAY: tuple[int, int] = (5, 8)
+    SLEEP_AFTER_GAME: tuple[int, int] = (0, 3600)
+    
     REF_ID: str = '228618799'
 
     SESSIONS_PER_PROXY: int = 1

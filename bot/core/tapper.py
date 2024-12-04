@@ -290,10 +290,10 @@ class Tapper(BaseTapper):
                                             else:
                                                 logger.info(self.log_message(f'<r>MISS</r> | {game_emojis[game]} {game} [<c>{tickets}</c>/<c>{initial_tickets}</c>]: <c>{animation}</c>'))
                                             tickets -= 1
-                                            await asyncio.sleep(uniform(1, 3))
+                                            await asyncio.sleep(uniform(*settings.GAME_START_DELAY))
                                         except Exception as e:
                                             log_error(self.log_message(f"Error playing {game}: {e}"))
-                                            await asyncio.sleep(5)
+                                            await asyncio.sleep(uniform(5, 8))
                                             break
                                 final_auth = await self.auth(init_data)
                                 final_tickets = final_auth.get('user', {}).get('amountOfTickets', 0)
@@ -307,7 +307,7 @@ class Tapper(BaseTapper):
                         if next_claim_time:
                             current_time = time()
                             if next_claim_time > current_time:
-                                wait_time = next_claim_time - current_time + uniform(60, 180)
+                                wait_time = next_claim_time - current_time + uniform(*settings.SLEEP_AFTER_GAME)
                                 formatted_wait_time = self.format_time_until(wait_time)
                                 logger.info(self.log_message(f"💤 Going to sleep for <c>{formatted_wait_time}</c> until next free tickets"))
                                 await asyncio.sleep(wait_time)
