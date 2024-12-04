@@ -14,6 +14,19 @@ class UpdateManager:
         self.current_commit = self._get_current_commit()
         self.check_interval = settings.CHECK_UPDATE_INTERVAL
         self.is_update_restart = "--update-restart" in sys.argv
+        self._configure_git_safe_directory()
+
+    def _configure_git_safe_directory(self) -> None:
+        try:
+            current_dir = os.getcwd()
+            subprocess.run(
+                ["git", "config", "--global", "--add", "safe.directory", current_dir],
+                check=True,
+                capture_output=True
+            )
+            logger.info("Git safe.directory configured successfully")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to configure git safe.directory: {e}")
 
     def _get_current_commit(self) -> str:
         try:
@@ -46,10 +59,13 @@ class UpdateManager:
 
     def _pull_updates(self) -> bool:
         try:
-            subprocess.run(["git", "pull"], check=True)
+            self._configure_git_safe_directory()
+            subprocess.run(["git", "pull"], check=True, capture_output=True)
             return True
         except subprocess.CalledProcessError as e:
             logger.error(f"Error updating: {e}")
+            if e.stderr:
+                logger.error(f"Git error details: {e.stderr.decode()}")
             return False
 
     def _install_requirements(self) -> bool:
