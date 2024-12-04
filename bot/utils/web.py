@@ -4,10 +4,13 @@ from werkzeug.utils import secure_filename
 
 PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 UPLOAD_FOLDER = os.path.join(PROJECT_ROOT, "sessions")
+TELETHON_FOLDER = os.path.join(UPLOAD_FOLDER, "telethon")
+PYROGRAM_FOLDER = os.path.join(UPLOAD_FOLDER, "pyrogram")
 ALLOWED_EXTENSIONS = set(['session'])
 MAX_CONTENT_LENGTH = 100 * 1024 * 1024 
 
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(TELETHON_FOLDER, exist_ok=True)
+os.makedirs(PYROGRAM_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -207,20 +210,27 @@ def upload_file():
         error_msg = 'No file in the request'
         print(f"Error: {error_msg}")
         return jsonify({'error': error_msg}), 400
+    
     file = request.files['file']
+    client_type = request.form.get('client_type', 'pyrogram')
+    
     print(f"Uploaded file name: {file.filename}")
     if file.filename == '':
         error_msg = 'No file selected'
         print(f"Error: {error_msg}")
         return jsonify({'error': error_msg}), 400
+    
     if file and allowed_file(file.filename):
-        filename = file.filename
+        filename = secure_filename(file.filename)
         print(f"Processed file name: {filename}")
-        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        target_folder = PYROGRAM_FOLDER if client_type == 'pyrogram' else TELETHON_FOLDER
+        save_path = os.path.join(target_folder, filename)
+        
         print(f"File save path: {save_path}")
         try:
             file.save(save_path)
-            success_msg = f"File '{filename}' successfully uploaded"
+            success_msg = f"File '{filename}' successfully uploaded to {client_type} folder"
             print(success_msg)
             return jsonify({'success': success_msg}), 200
         except Exception as e:
@@ -238,8 +248,14 @@ def get_file_name_without_extension(filename):
 @app.route('/files', methods=['GET'])
 def list_files():
     try:
-        all_files = os.listdir(UPLOAD_FOLDER)
-        files = [f for f in all_files if os.path.isfile(os.path.join(UPLOAD_FOLDER, f)) and f.endswith('.session')]
+        files = []
+        telethon_files = [f"telethon/{f}" for f in os.listdir(TELETHON_FOLDER) 
+                         if os.path.isfile(os.path.join(TELETHON_FOLDER, f)) and f.endswith('.session')]
+        pyrogram_files = [f"pyrogram/{f}" for f in os.listdir(PYROGRAM_FOLDER) 
+                         if os.path.isfile(os.path.join(PYROGRAM_FOLDER, f)) and f.endswith('.session')]
+        
+        files.extend(telethon_files)
+        files.extend(pyrogram_files)
         return jsonify({'files': files}), 200
     except Exception as e:
         error_msg = f'Failed to get file list: {str(e)}'
@@ -281,7 +297,13 @@ def rename_file():
 @app.route('/delete/<path:filename>', methods=['DELETE'])
 def delete_file(filename):
     try:
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        if filename.startswith('telethon/'):
+            file_path = os.path.join(TELETHON_FOLDER, filename.replace('telethon/', ''))
+        elif filename.startswith('pyrogram/'):
+            file_path = os.path.join(PYROGRAM_FOLDER, filename.replace('pyrogram/', ''))
+        else:
+            return jsonify({'error': 'Invalid file path'}), 400
+
         if os.path.exists(file_path):
             os.remove(file_path)
             return jsonify({'success': f"File '{filename}' successfully deleted"}), 200
@@ -295,7 +317,12 @@ def delete_file(filename):
 @app.route('/download/<path:filename>', methods=['GET'])
 def download_file(filename):
     try:
-        return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+        if filename.startswith('telethon/'):
+            return send_from_directory(TELETHON_FOLDER, filename.replace('telethon/', ''), as_attachment=True)
+        elif filename.startswith('pyrogram/'):
+            return send_from_directory(PYROGRAM_FOLDER, filename.replace('pyrogram/', ''), as_attachment=True)
+        else:
+            return jsonify({'error': 'Invalid file path'}), 400
     except Exception as e:
         return jsonify({'error': 'File not found'}), 404
 
