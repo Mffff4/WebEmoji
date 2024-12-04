@@ -2,7 +2,6 @@
 
 firstRun=true
 
-# Проверка на наличие папки venv
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
     python3 -m venv venv
