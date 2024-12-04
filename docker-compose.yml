@@ -9,3 +9,4 @@ services:
     volumes:
       - .:/app
       - ./daily_stats:/app/daily_stats
+      - /TG_FARM:/TG_FARM
