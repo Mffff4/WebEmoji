@@ -4,7 +4,7 @@ from urllib.parse import unquote
 from aiocfscrape import CloudflareScraper
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
-from random import randint, uniform
+from random import randint, uniform, choice, random
 from time import time
 from bot.utils.universal_telegram_client import UniversalTelegramClient
 from .headers import *
@@ -15,6 +15,66 @@ from datetime import datetime, timezone
 import math
 from bot.core.base_tapper import BaseTapper
 from bot.core.daily_stats import DailyStatsRecorder
+
+class GameStats:
+    def __init__(self):
+        self.games = {
+            'Football': {'wins': 0, 'total': 0, 'points': 0},
+            'Basketball': {'wins': 0, 'total': 0, 'points': 0},
+            'Darts': {'wins': 0, 'total': 0, 'points': 0}
+        }
+        self.strategy = settings.GAME_STRATEGY
+        self.epsilon = settings.EPSILON
+    
+    def update(self, game: str, won: bool, points: int = 0):
+        if game in self.games:
+            self.games[game]['total'] += 1
+            if won:
+                self.games[game]['wins'] += 1
+                self.games[game]['points'] += points
+    
+    def get_win_rate(self, game: str) -> float:
+        stats = self.games.get(game)
+        if not stats or stats['total'] == 0:
+            return 0.4
+        return stats['wins'] / stats['total']
+    
+    def get_expected_value(self, game: str) -> float:
+        win_rate = self.get_win_rate(game)
+        if game in ['Football', 'Basketball']:
+            return win_rate * 100
+        elif game == 'Darts':
+            avg_points = self.games[game]['points'] / self.games[game]['wins'] if self.games[game]['wins'] > 0 else 60
+            return win_rate * avg_points
+        return 0
+    
+    def get_best_game(self) -> str:
+        if self.strategy == "random":
+            return choice(list(self.games.keys()))
+        if self.strategy == "smart" and random() < self.epsilon:
+            return choice(list(self.games.keys()))
+        best_game = None
+        best_value = -1
+        for game in self.games:
+            expected_value = self.get_expected_value(game)
+            if expected_value > best_value:
+                best_value = expected_value
+                best_game = game
+        return best_game or 'Football'
+    
+    def get_stats_summary(self) -> str:
+        summary = "\n    📊 Game Statistics\n    ┌" + "─" * 40
+        summary += f"\n    ├─ Strategy: <c>{self.strategy.upper()}</c>"
+        if self.strategy == "smart":
+            summary += f" (ε={self.epsilon})"
+        summary += "\n"
+        for game, stats in self.games.items():
+            win_rate = self.get_win_rate(game)
+            expected_value = self.get_expected_value(game)
+            summary += f"\n    ├─ {game}:\n"
+            summary += f"    │  ├─ Win Rate: <c>{win_rate:.1%}</c>\n"
+            summary += f"    │  └─ Expected Value: <c>{expected_value:.1f}</c>"
+        return summary + "\n    └" + "─" * 40
 
 class Tapper(BaseTapper):
     def __init__(self, tg_client: UniversalTelegramClient):
@@ -35,6 +95,7 @@ class Tapper(BaseTapper):
             proxy = Proxy.from_str(self.proxy)
             self.tg_client.set_proxy(proxy)
         self.stats_recorder = DailyStatsRecorder(self)
+        self.game_stats = GameStats()
     
     def get_ref_id(self) -> str:
         if self.current_ref_id is None:
@@ -211,7 +272,7 @@ class Tapper(BaseTapper):
                         log_error(self.log_message(f"Failed to send notification: {error_text}"))
         except Exception as e:
             log_error(self.log_message(f"Error sending notification: {e}"))
-   
+    
     async def run(self) -> None:
         try:
             random_delay = uniform(1, settings.SESSION_START_DELAY)
@@ -274,33 +335,36 @@ class Tapper(BaseTapper):
                                 games_in_session = 0
                                 max_games = settings.MAX_GAMES_PER_SESSION if settings.MAX_GAMES_PER_SESSION > 0 else tickets
                                 while tickets > 0 and (settings.MAX_GAMES_PER_SESSION == 0 or games_in_session < max_games):
-                                    for game in games:
-                                        if tickets <= 0 or (settings.MAX_GAMES_PER_SESSION > 0 and games_in_session >= max_games):
-                                            break
-                                        try:
-                                            game_response = await self.play_game(token, game)
-                                            points_won = game_response.get('pointsWon', 0)
-                                            animation = game_response.get('animation', 'unknown')
-                                            session_stats['total_games'] += 1
-                                            games_in_session += 1
-                                            if points_won > 0:
-                                                session_stats['wins'] += 1
-                                                session_stats['points_earned'] += points_won
-                                                logger.info(self.log_message(f'<g>WIN</g> | {game_emojis[game]} {game} [<c>{tickets}</c>/<c>{initial_tickets}</c>]: <c>{animation}</c> | +<c>{points_won}</c> points'))
-                                            else:
-                                                logger.info(self.log_message(f'<r>MISS</r> | {game_emojis[game]} {game} [<c>{tickets}</c>/<c>{initial_tickets}</c>]: <c>{animation}</c>'))
-                                            tickets -= 1
-                                            await asyncio.sleep(uniform(*settings.GAME_START_DELAY))
-                                        except Exception as e:
-                                            log_error(self.log_message(f"Error playing {game}: {e}"))
-                                            await asyncio.sleep(uniform(5, 8))
-                                            break
+                                    game = self.game_stats.get_best_game()
+                                    if tickets <= 0 or (settings.MAX_GAMES_PER_SESSION > 0 and games_in_session >= max_games):
+                                        break
+                                    try:
+                                        game_response = await self.play_game(token, game)
+                                        points_won = game_response.get('pointsWon', 0)
+                                        animation = game_response.get('animation', 'unknown')
+                                        session_stats['total_games'] += 1
+                                        games_in_session += 1
+                                        self.game_stats.update(game, points_won > 0, points_won)
+                                        if points_won > 0:
+                                            session_stats['wins'] += 1
+                                            session_stats['points_earned'] += points_won
+                                            logger.info(self.log_message(f'<g>WIN</g> | {game_emojis[game]} {game} [<c>{tickets}</c>/<c>{initial_tickets}</c>]: <c>{animation}</c> | +<c>{points_won}</c> points'))
+                                        else:
+                                            logger.info(self.log_message(f'<r>MISS</r> | {game_emojis[game]} {game} [<c>{tickets}</c>/<c>{initial_tickets}</c>]: <c>{animation}</c>'))
+                                        if games_in_session % 50 == 0:
+                                            logger.info(self.log_message(self.game_stats.get_stats_summary()))
+                                        tickets -= 1
+                                        await asyncio.sleep(uniform(*settings.GAME_START_DELAY))
+                                    except Exception as e:
+                                        log_error(self.log_message(f"Error playing {game}: {e}"))
+                                        await asyncio.sleep(uniform(5, 8))
+                                        break
                                 final_auth = await self.auth(init_data)
                                 final_tickets = final_auth.get('user', {}).get('amountOfTickets', 0)
                                 final_points = final_auth.get('user', {}).get('points', 0)
                                 points_diff = final_points - points
                                 win_rate = (session_stats['wins'] / session_stats['total_games'] * 100) if session_stats['total_games'] > 0 else 0
-                                logger.info(self.log_message(f"\n    📊 Session Statistics\n    ┌{'─' * 40}\n    ├─ 🎮 Games Played:    <c>{session_stats['total_games']}</c>\n    ├─ 🏆 Wins:           <g>{session_stats['wins']}</g>\n    ├─ 📉 Losses:         <r>{session_stats['total_games'] - session_stats['wins']}</r>\n    ├─ 📈 Win Rate:       <c>{win_rate:.1f}%</c>\n    ├─ 🎟️ Tickets Used:   <c>{initial_tickets}</c>\n    ├{'─' * 40}\n    ├─ 💎 Points:\n    │  ├─ Initial:       <c>{points}</c>\n    │  ├─ Earned:        <g>+{session_stats['points_earned']}</g>\n    │  ├─ Total Change:  <{'g' if points_diff >= 0 else 'r'}>{'+'if points_diff >= 0 else ''}{points_diff}</{'g' if points_diff >= 0 else 'r'}>\n    │  └─ Current:       <c>{final_points}</c>\n    ├{'─' * 40}\n    └─ 🎫 Tickets Balance: <c>{final_tickets}</c>\n"))
+                                logger.info(self.log_message(f"\n    📊 Session Statistics\n    ┌{'─' * 40}\n    ├─ 🎮 Games Played:    <c>{session_stats['total_games']}</c>\n    ├─ 🏆 Wins:           <g>{session_stats['wins']}</g>\n    ├─ 📉 Losses:         <r>{session_stats['total_games'] - session_stats['wins']}</r>\n    ├─ 📈 Win Rate:       <c>{win_rate:.1f}%</c>\n    ├─ 🎟️ Tickets Used:   <c>{session_stats['total_games']}</c>\n    ├{'─' * 40}\n    ├─ 💎 Points:\n    │  ├─ Initial:       <c>{points}</c>\n    │  ├─ Earned:        <g>+{session_stats['points_earned']}</g>\n    │  ├─ Total Change:  <{'g' if points_diff >= 0 else 'r'}>{'+'if points_diff >= 0 else ''}{points_diff}</{'g' if points_diff >= 0 else 'r'}>\n    │  └─ Current:       <c>{final_points}</c>\n    ├{'─' * 40}\n    └─ 🎫 Tickets Balance: <c>{final_tickets}</c>\n"))
                             else:
                                 reason = "globally disabled" if not settings.ENABLE_GAMES else "disabled for this session"
                                 logger.info(self.log_message(f'<y>GAMES {reason.upper()}</y> | Skipping games with <c>{tickets}</c> tickets'))

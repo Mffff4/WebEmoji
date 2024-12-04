@@ -15,10 +15,9 @@ from bot.core.agents import generate_random_user_agent
 from bot.utils import logger, config_utils, proxy_utils, CONFIG_PATH, SESSIONS_PATH, PROXIES_PATH
 from bot.core.tapper import run_tapper
 from bot.core.registrator import register_sessions
+from bot.utils.updater import UpdateManager
 
-init()  # Инициализация colorama
-
-# Добавляем глобальные переменные для управления веб-сервером
+init()
 shutdown_event = asyncio.Event()
 
 def signal_handler(signum, frame):
@@ -35,7 +34,6 @@ START_TEXT = f"""
 {Fore.RED}주의: 이 농장은 판매용이 아닙니다!{Style.RESET_ALL}
 {Fore.RED}注意：此农场不用于销售！{Style.RESET_ALL}
 {Fore.RED}ATENÇÃO: Esta fazenda não se destina à venda!{Style.RESET_ALL}
-
 
 {Fore.LIGHTMAGENTA_EX} 
 
@@ -63,7 +61,6 @@ START_TEXT = f"""
 API_ID = settings.API_ID
 API_HASH = settings.API_HASH
 
-
 def prompt_user_action() -> int:
     logger.info(START_TEXT)
     while True:
@@ -72,10 +69,10 @@ def prompt_user_action() -> int:
             return int(action)
         logger.warning("Invalid action. Please enter a number between 1 and 4.")
 
-
 async def process() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--action", type=int, help="Action to perform")
+    parser.add_argument("--update-restart", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     if not settings.USE_PROXY:
@@ -84,7 +81,9 @@ async def process() -> None:
         logger.info(f"Detected {len(get_sessions(SESSIONS_PATH))} sessions | "
                     f"{len(proxy_utils.get_proxies(PROXIES_PATH))} proxies")
 
-    action = args.action or prompt_user_action()
+    action = args.action
+    if not action and not args.update_restart:
+        action = prompt_user_action()
 
     if action == 1:
         if not API_ID or not API_HASH:
@@ -108,13 +107,11 @@ async def process() -> None:
             await stop_web_and_tunnel()
             print("Program terminated.")
 
-
 def get_sessions(sessions_folder: str) -> list[str]:
     session_names = glob.glob(f"{sessions_folder}/*.session")
     session_names += glob.glob(f"{sessions_folder}/telethon/*.session")
     session_names += glob.glob(f"{sessions_folder}/pyrogram/*.session")
     return [file.replace('.session', '') for file in sorted(session_names)]
-
 
 async def get_tg_clients() -> list[UniversalTelegramClient]:
     session_paths = get_sessions(SESSIONS_PATH)
@@ -185,7 +182,6 @@ async def get_tg_clients() -> list[UniversalTelegramClient]:
 
     return tg_clients
 
-
 async def init_config_file():
     session_paths = get_sessions(SESSIONS_PATH)
 
@@ -202,10 +198,21 @@ async def init_config_file():
             if accounts_config.get(session_name) != session_config:
                 await config_utils.update_session_config_in_file(session_name, session_config, CONFIG_PATH)
 
-
 async def run_tasks():
     await config_utils.restructure_config(CONFIG_PATH)
     await init_config_file()
+    if settings.AUTO_UPDATE:
+        update_manager = UpdateManager()
+        update_task = asyncio.create_task(update_manager.run())
+    else:
+        update_task = None
     tg_clients = await get_tg_clients()
     tasks = [asyncio.create_task(run_tapper(tg_client=tg_client)) for tg_client in tg_clients]
-    await asyncio.gather(*tasks)
+    
+    try:
+        await asyncio.gather(update_task, *tasks)
+    except asyncio.CancelledError:
+        update_task.cancel()
+        for task in tasks:
+            task.cancel()
+        raise

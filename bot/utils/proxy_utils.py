@@ -42,15 +42,6 @@ def to_pyrogram_proxy(proxy: Proxy):
 
 
 def get_proxies(proxy_path: str) -> list[str]:
-    """Reads proxies from the proxy file and returns array of proxies.
-    If file doesn't exist, creates the file
-
-     Args:
-       proxy_path: Path to the proxies.txt file.
-
-     Returns:
-       The contents of the file, or an empty list if the file was empty or created.
-     """
     proxy_template_path = "bot/config/proxies-template.txt"
 
     if not os.path.isfile(proxy_path):
@@ -87,7 +78,7 @@ async def check_proxy(proxy):
         return False
 
 
-async def get_proxy_chain(path) -> (str | None, str | None):
+async def get_proxy_chain(path) -> (str | None, str | None): # type: ignore
     try:
         with open(path, 'r') as file:
             proxy = file.read().strip()

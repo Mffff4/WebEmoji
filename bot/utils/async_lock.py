@@ -7,8 +7,6 @@ from bot.utils import logger
 
 
 class AsyncInterProcessLock:
-    """A context manager for acquiring inter-process locks asynchronously."""
-
     def __init__(self, lock_file):
         self.lock = fasteners.InterProcessLock(lock_file)
         self.file_name, _ = path.splitext(path.basename(lock_file))

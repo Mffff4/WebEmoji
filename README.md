@@ -97,7 +97,11 @@
 | **SESSION_START_DELAY**   | 360                  | Delay before session start (sec)                             |
 | **GAME_START_DELAY**      | (5, 8)                | Time to wait before starting the game (sec)
 | **SLEEP_AFTER_GAME**      | (0, 3600)             | Time to wait after the game (sec)
-| **REF_ID**                |             | Referral ID for new accounts                                 |
+| **REF_ID**                |                      | Referral ID for new accounts                                 |
+| **GAME_STRATEGY**         | "smart"                | Game strategy (smart / random)                            |
+| **EPSILON**               | 0.2                  | Smart strategy parameter                                    |
+| **AUTO_UPDATE**           | True                 | Enable automatic updates                                   |
+| **CHECK_UPDATE_INTERVAL** | 300                  | Update check interval (sec)                         |
 | **USE_PROXY**             | False                 | Enable proxy usage                                           |
 | **SESSIONS_PER_PROXY**    | 1                    | Number of sessions per proxy                                 |
 | **DISABLE_PROXY_REPLACE** | False                | Disable proxy replacement on failure                         |
