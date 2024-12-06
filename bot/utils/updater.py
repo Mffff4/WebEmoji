@@ -1,7 +1,6 @@
 import os
 import sys
 import asyncio
-import aiohttp
 import subprocess
 from typing import Optional
 from bot.utils import logger
@@ -9,9 +8,7 @@ from bot.config import settings
 
 class UpdateManager:
     def __init__(self):
-        self.repo_url = f"https://api.github.com/repos/{settings.GITHUB_REPO}"
         self.branch = "main"
-        self.current_commit = self._get_current_commit()
         self.check_interval = settings.CHECK_UPDATE_INTERVAL
         self.is_update_restart = "--update-restart" in sys.argv
         self._configure_git_safe_directory()
@@ -28,18 +25,6 @@ class UpdateManager:
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to configure git safe.directory: {e}")
 
-    def _get_current_commit(self) -> str:
-        try:
-            result = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            return result.stdout.strip()
-        except subprocess.CalledProcessError:
-            return ""
-
     def _check_requirements_changed(self) -> bool:
         try:
             result = subprocess.run(
@@ -54,26 +39,22 @@ class UpdateManager:
             logger.error(f"Error checking requirements changes: {e}")
             return True
 
-    async def _get_latest_commit(self) -> Optional[str]:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{self.repo_url}/commits/{self.branch}") as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        return data["sha"]
-        except Exception as e:
-            logger.error(f"Error getting latest commit: {e}")
-        return None
-
     async def check_for_updates(self) -> bool:
-        latest_commit = await self._get_latest_commit()
-        if not latest_commit:
+        try:
+            subprocess.run(["git", "fetch"], check=True, capture_output=True)
+            result = subprocess.run(
+                ["git", "status", "-uno"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            return "Your branch is behind" in result.stdout
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error checking updates: {e}")
             return False
-        return latest_commit != self.current_commit
 
     def _pull_updates(self) -> bool:
         try:
-            self._configure_git_safe_directory()
             subprocess.run(["git", "pull"], check=True, capture_output=True)
             return True
         except subprocess.CalledProcessError as e:

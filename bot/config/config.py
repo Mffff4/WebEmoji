@@ -35,7 +35,6 @@ class Settings(BaseSettings):
     GAME_STRATEGY: str = "smart"
     EPSILON: float = 0.2
     AUTO_UPDATE: bool = True
-    GITHUB_REPO: str = "Mffff4/WebEmoji"
     CHECK_UPDATE_INTERVAL: int = 300
 
     DAILY_STATS_SESSIONS: str = ""
