@@ -337,9 +337,10 @@ class Tapper(BaseTapper):
                                 max_games = tickets
                                 max_games_setting = settings.MAX_GAMES_PER_SESSION
                                 
-                                if isinstance(max_games_setting, int):
-                                    if max_games_setting > 0:
-                                        max_games = min(max_games_setting, tickets)
+                                if max_games_setting == 0 or max_games_setting == (0, 0):
+                                    max_games = tickets
+                                elif isinstance(max_games_setting, int):
+                                    max_games = min(max_games_setting, tickets)
                                 else:
                                     min_games, max_limit = max_games_setting
                                     if min_games > 0 and max_limit > 0:
