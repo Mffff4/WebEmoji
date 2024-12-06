@@ -170,14 +170,13 @@ class Tapper(BaseTapper):
             quests_data = await self.get_quests(token)
             all_quests = []
             for quest_type in ['daily', 'oneTime', 'special']:
-                all_quests.extend(quests_data.get('quests', {}).get(quest_type, []))
+                quests = quests_data.get('quests', {}).get(quest_type, [])
+                all_quests.extend([q for q in quests if not q.get('completed')])
             referrals_data = await self.get_referrals(token)
             total_referrals = referrals_data.get('totalReferrals', 0)
-            logger.info(self.log_message(f'🎯 Processing <c>{len(all_quests)}</c> available quests'))
+            logger.info(self.log_message(f'🎯 Processing <c>{len(all_quests)}</c> uncompleted quests'))
             completed_any = False
             for quest in all_quests:
-                if quest.get('completed'):
-                    continue
                 quest_type = quest.get('option')
                 quest_category = quest.get('type', 'UNKNOWN')
                 quest_text = quest.get('text', '')
