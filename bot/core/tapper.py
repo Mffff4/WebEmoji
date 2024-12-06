@@ -333,8 +333,21 @@ class Tapper(BaseTapper):
                                 games = settings.GAMES
                                 logger.info(self.log_message(f'🎮 Starting gaming session with <c>{tickets}</c> tickets'))
                                 games_in_session = 0
-                                max_games = settings.MAX_GAMES_PER_SESSION if settings.MAX_GAMES_PER_SESSION > 0 else tickets
-                                while tickets > 0 and (settings.MAX_GAMES_PER_SESSION == 0 or games_in_session < max_games):
+                                
+                                max_games = tickets
+                                max_games_setting = settings.MAX_GAMES_PER_SESSION
+                                
+                                if isinstance(max_games_setting, int):
+                                    if max_games_setting > 0:
+                                        max_games = min(max_games_setting, tickets)
+                                else:
+                                    min_games, max_limit = max_games_setting
+                                    if min_games > 0 and max_limit > 0:
+                                        max_games = randint(min_games, max_limit)
+                                    elif max_limit > 0:
+                                        max_games = min(max_limit, tickets)
+                                
+                                while tickets > 0 and games_in_session < max_games:
                                     game = self.game_stats.get_best_game()
                                     if tickets <= 0 or (settings.MAX_GAMES_PER_SESSION > 0 and games_in_session >= max_games):
                                         break

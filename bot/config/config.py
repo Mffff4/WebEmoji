@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     DEBUG_LOGGING: bool = False
 
     ENABLE_GAMES: bool = True
-    MAX_GAMES_PER_SESSION: int = 0
+    MAX_GAMES_PER_SESSION: tuple[int, int] | int = (0, 0)
     DISABLED_GAMES_SESSIONS: str = ""
 
     GAME_STRATEGY: str = "smart"
