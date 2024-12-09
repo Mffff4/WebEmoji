@@ -189,14 +189,26 @@ class Tapper(BaseTapper):
                         logger.info(self.log_message(f"<y>SKIP</y> | Referral quest - need <c>{referrals_needed}</c> refs, have <c>{total_referrals}</c>"))
                         continue
                 quest_id = quest.get('id')
-                try:
-                    await asyncio.sleep(uniform(2, 5))
-                    verify_response = await self.verify_quest(token, quest_id)
-                    tickets = verify_response.get('user', {}).get('amountOfTickets', 0)
-                    logger.info(self.log_message(f"<g>DONE</g> | {quest_category} quest: {quest_text} | Tickets: <c>{tickets}</c>"))
-                    completed_any = True
-                except Exception as e:
-                    log_error(self.log_message(f"Error verifying quest {quest_id}: {e}"))
+                max_retries = 3
+                retry_count = 0
+                
+                while retry_count < max_retries:
+                    try:
+                        await asyncio.sleep(uniform(2, 5))
+                        verify_response = await self.verify_quest(token, quest_id)
+                        tickets = verify_response.get('user', {}).get('amountOfTickets', 0)
+                        logger.info(self.log_message(f"<g>DONE</g> | {quest_category} quest: {quest_text} | Tickets: <c>{tickets}</c>"))
+                        completed_any = True
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            wait_time = uniform(30, 60)
+                            logger.warning(self.log_message(f"Error verifying quest {quest_id}, retrying in {int(wait_time)}s: {e}"))
+                            await asyncio.sleep(wait_time)
+                        else:
+                            log_error(self.log_message(f"Failed to verify quest {quest_id} after {max_retries} attempts: {e}"))
+                            
             return completed_any
         except Exception as e:
             log_error(self.log_message(f"Error processing quests: {e}"))
